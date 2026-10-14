@@ -1,9 +1,10 @@
 # autocomplete
 
-Módulo reutilizable de autocompletado, autocorrección y sugerencia de
-comandos basado en Trie. Incluye CLI, daemon, Tab wrapper, persistencia
-con SQLAlchemy, API HTTP opcional y soporte para integración como
-librería embebida.
+Paquete Python reutilizable de autocompletado, autocorrección y
+sugerencia de comandos basado en Trie. Incluye CLI, daemon TCP local,
+Tab wrapper para PowerShell/bash/zsh/fish, persistencia con SQLAlchemy
+y soporte para integrarse como librería embebida en otros proyectos
+(scripts, generadores de documentos, servicios web).
 
 ---
 
@@ -21,75 +22,81 @@ librería embebida.
 10. [Tab wrapper](#tab-wrapper)
 11. [Asistente `init`](#asistente-init)
 12. [Diccionario de comandos](#diccionario-de-comandos)
-13. [API HTTP (FastAPI)](#api-http-fastapi)
-14. [Integración en otros proyectos](#integración-en-otros-proyectos)
-15. [Tests](#tests)
-16. [Solución de problemas](#solución-de-problemas)
-17. [Historial de cambios](#historial-de-cambios)
-18. [Licencia](#licencia)
+13. [Integración en otros proyectos](#integración-en-otros-proyectos)
+14. [Tests](#tests)
+15. [Solución de problemas](#solución-de-problemas)
+16. [Licencia](#licencia)
 
 ---
 
 ## Descripción
 
-`autocomplete` es un paquete Python que ofrece:
+`autocomplete` ofrece:
 
 - **Autocompletado por prefijo** (Trie con pesos/frecuencia).
 - **Autocorrección** de typos (distancia Damerau-Levenshtein).
-- **Normalización de acentos** (`"cafe"` encuentra `"café"`).
+- **Normalización de acentos**: `"cafe"` encuentra `"café"`.
 - **Carga masiva** desde `.txt`, `.tsv`, `.gz` y directorios completos.
-- **Persistencia** con SQLAlchemy (SQLite por defecto, PostgreSQL/MySQL
-  cambiando solo la URL).
-- **CLI** con subcomandos.
+- **Persistencia** con SQLAlchemy 2.0: SQLite por defecto,
+  PostgreSQL/MySQL cambiando solo la URL.
+- **CLI** con subcomandos (`suggest`, `correct`, `shell`, `repl`,
+  `load-dir`, `db`, `config`, `daemon`, `init`, `install-ps`).
 - **Daemon TCP local** para que el Tab responda en ~5-15 ms.
-- **Tab wrapper** para PowerShell, bash, zsh y fish.
-- **API HTTP** opcional con FastAPI para integración web.
+- **Tab wrapper** para PowerShell, bash, zsh y fish (daemon-aware).
+- **API HTTP** opcional vía FastAPI.
 
 ---
 
 ## Requerimientos
 
-### Software
+### Software base
 
 - **Python 3.9+** (probado en 3.13).
-- **SQLAlchemy 2.0+**.
-- **PowerShell 5.1+** o **PowerShell 7+** (para el wrapper de Windows).
-- **PSReadLine 2.0+** (viene con Windows PowerShell 5.1 y PowerShell 7).
+- **SQLAlchemy 2.0+** (única dependencia obligatoria).
 
 ### Opcional
 
 - `psycopg[binary]>=3.1` para PostgreSQL.
 - `pymysql>=1.1` para MySQL/MariaDB.
 - `fastapi[standard]` + `uvicorn` para el API HTTP.
-- `pytest>=7` para tests.
+- `pytest>=7` + `pytest-cov` para tests.
 
-### Herramientas del sistema (solo si usas backup/restore)
+### Shell soportado para el Tab wrapper
 
-- SQLite: ninguna (copia directa del archivo).
-- PostgreSQL: `pg_dump` y `psql` en el PATH.
-- MySQL/MariaDB: `mysqldump` y `mysql` en el PATH.
+- **PowerShell 5.1+** o **PowerShell 7+** con PSReadLine 2.0+.
+- **bash**, **zsh**, **fish** en Linux/macOS.
 
-### Sistema operativo
+### Herramientas del sistema (solo para backup/restore de PostgreSQL/MySQL)
 
-- **Windows** (wrapper PowerShell `.ps1`).
-- **Linux / macOS** (wrappers bash/zsh/fish).
+- PostgreSQL: `pg_dump` y `psql`.
+- MySQL/MariaDB: `mysqldump` y `mysql`.
+
+No es necesario tenerlas en el PATH: ver
+[Backup y restore](#backup-y-restore).
 
 ---
 
 ## Instalación
 
-### 1. Clonar o crear el proyecto
+### 1. Clonar y entrar
 
 ```powershell
-mkdir D:\Programacion\Proyectos\Autocompletado
-cd D:\Programacion\Proyectos\Autocompletado
+git clone <url-del-repo>
+cd Autocompletado
 ```
 
-### 2. Crear el entorno virtual (recomendado)
+### 2. Entorno virtual
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+```
+
+En Linux/macOS:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 3. Instalar en modo editable
@@ -98,7 +105,7 @@ python -m venv .venv
 pip install -e .
 ```
 
-Con dependencias opcionales:
+Con extras opcionales:
 
 ```powershell
 pip install -e ".[dev,postgres]"
@@ -110,9 +117,9 @@ pip install -e ".[dev,postgres]"
 python -m autocomplete -h
 ```
 
-Debe mostrar la ayuda del CLI.
+Debe imprimir la ayuda del CLI.
 
-> ⚠️ **Importante**: usar `python -m autocomplete`, **no** `python autocomplete`.
+> **Importante**: usar `python -m autocomplete`, **no** `python autocomplete`.
 > Ver [Solución de problemas](#solución-de-problemas).
 
 ---
@@ -128,76 +135,79 @@ Autocompletado/
 ├── LICENSE
 ├── .gitignore
 ├── .editorconfig
-├── comandos.txt                    # diccionario monolítico (opcional)
+├── comandos.txt                    # diccionario monolítico
 ├── comandos/                       # diccionario por categorías
 │   ├── 01-git.txt
 │   ├── 02-docker.txt
-│   ├── 03-kubernetes.txt
 │   ├── ... (28 archivos)
 │   └── 28-devops.txt
-├── autocomplete/                   # paquete principal
+├── autocomplete/
 │   ├── __init__.py                 # API pública (re-exports)
 │   ├── __main__.py                 # entry point `python -m autocomplete`
-│   ├── py.typed                    # marcador PEP 561 (type hints)
-│   ├── exceptions.py               # excepciones transversales
+│   ├── py.typed                    # marcador PEP 561
+│   ├── exceptions.py
 │   │
-│   ├── core/                       # dominio: lógica pura, sin I/O
+│   ├── core/                       # dominio, sin I/O
 │   │   ├── __init__.py
 │   │   ├── engine.py               # clase Autocomplete
 │   │   ├── trie.py                 # Trie + TrieNode
-│   │   ├── similarity.py           # Levenshtein / Damerau
+│   │   ├── similarity.py           # levenshtein / damerau
 │   │   └── stats.py                # LoadStats / LoadDirStats
 │   │
-│   ├── text/                       # utilidades de texto
+│   ├── text/
 │   │   ├── __init__.py
 │   │   └── normalization.py        # strip_accents, normalize_key
 │   │
-│   ├── storage/                    # persistencia
+│   ├── storage/
 │   │   ├── __init__.py
-│   │   ├── models.py               # Base + WordRecord / HistoryRecord / PreferenceRecord
-│   │   ├── repository.py           # Storage (CRUD)
-│   │   └── maintenance.py          # backup, restore, vacuum, reset
+│   │   ├── models.py               # Base + modelos ORM
+│   │   └── repository.py           # Storage (CRUD + mantenimiento)
 │   │
-│   ├── config/                     # configuración
+│   ├── config/
 │   │   ├── __init__.py
 │   │   └── settings.py             # Config + rutas por SO
 │   │
-│   ├── server/                     # daemon y cliente TCP
+│   ├── server/
 │   │   ├── __init__.py
-│   │   ├── protocol.py             # constantes del protocolo JSON
 │   │   ├── daemon.py               # servidor TCP
 │   │   └── client.py               # cliente con fallback
 │   │
-│   ├── execution/                  # ejecución de comandos
+│   ├── execution/
 │   │   ├── __init__.py
 │   │   └── runner.py               # run_command, ExecutionResult
 │   │
-│   ├── interfaces/                 # puntos de entrada
+│   ├── interfaces/
 │   │   ├── __init__.py
 │   │   ├── cli.py                  # CLI argparse
-│   │   ├── api.py                  # API HTTP (FastAPI) opcional
 │   │   └── wizard.py               # asistente `init`
 │   │
-│   └── assets/                     # recursos empaquetados
-│       ├── wrapper.ps1             # Tab wrapper PowerShell
-│       ├── wrapper.bash            # Tab wrapper bash
-│       ├── wrapper.zsh             # Tab wrapper zsh
-│       └── wrapper.fish            # Tab wrapper fish
+│   └── assets/
+│       ├── __init__.py
+│       ├── wrapper.ps1
+│       ├── wrapper.bash
+│       ├── wrapper.zsh
+│       └── wrapper.fish
 │
 └── tests/
     ├── __init__.py
     ├── conftest.py
-    ├── test_core.py
-    ├── test_similarity.py
-    ├── test_storage.py
+    ├── test_bulk_load.py
+    ├── test_cli.py
     ├── test_config.py
-    └── test_cli.py
+    ├── test_core.py
+    ├── test_execution.py
+    ├── test_server.py
+    ├── test_similarity.py
+    ├── test_stats.py
+    ├── test_storage.py
+    ├── test_text.py
+    └── test_wizard.py
 ```
 
 ### Reglas de dependencia entre capas
 
-Cada capa puede importar de las inferiores, pero nunca al revés. Esto
-garantiza que `core` sea testeable sin base de datos ni red.
+Cada capa puede importar de las inferiores, nunca al revés. `core` es
+testeable sin base de datos ni red.
 
 ```text
 interfaces  →  server / execution / storage / config
@@ -209,34 +219,31 @@ interfaces  →  server / execution / storage / config
 
 | Capa | Responsabilidad | Puede importar de |
 |---|---|---|
-| `interfaces` | Puntos de entrada (CLI, HTTP, wizard) | Todo lo demás |
+| `interfaces` | Puntos de entrada (CLI, wizard) | Todo lo demás |
 | `server` | Daemon TCP y cliente | `core`, `storage`, `config` |
 | `execution` | Ejecución de comandos | `exceptions` |
 | `storage` | Persistencia SQLAlchemy | `config`, `exceptions` |
 | `config` | Configuración JSON | `exceptions` |
 | `core` | Lógica pura del Trie y motor | `text`, `exceptions` |
 | `text` | Normalización de texto | `exceptions` |
-| `exceptions` | Excepciones | — (nada) |
+| `exceptions` | Excepciones | — |
 
 ### Mapa de módulos
 
 | Archivo | Responsabilidad |
 |---|---|
-| `core/engine.py` | Clase `Autocomplete` con métodos públicos |
-| `core/trie.py` | Estructura de datos `Trie` / `TrieNode` |
+| `core/engine.py` | Clase `Autocomplete` |
+| `core/trie.py` | `Trie`, `TrieNode` |
 | `core/similarity.py` | `levenshtein`, `damerau_levenshtein`, `find_similar` |
 | `core/stats.py` | `LoadStats`, `LoadDirStats` |
 | `text/normalization.py` | `strip_accents`, `normalize_key` |
-| `storage/models.py` | Modelos ORM (`WordRecord`, etc.) |
-| `storage/repository.py` | Clase `Storage` con CRUD |
-| `storage/maintenance.py` | `backup`, `restore`, `vacuum`, `reset` |
-| `config/settings.py` | Clase `Config`, rutas por SO |
-| `server/daemon.py` | Servidor TCP que mantiene el Trie en memoria |
-| `server/client.py` | Cliente con fallback silencioso al CLI |
-| `server/protocol.py` | Constantes y helpers del protocolo JSON |
+| `storage/models.py` | `Base`, `WordRecord`, `HistoryRecord`, `PreferenceRecord` |
+| `storage/repository.py` | Clase `Storage` (CRUD, backup, restore, vacuum, reset) |
+| `config/settings.py` | Clase `Config`, `config_dir`, `config_path`, `default_db_url` |
+| `server/daemon.py` | Servidor TCP con Trie en memoria |
+| `server/client.py` | `DaemonClient` con fallback silencioso |
 | `execution/runner.py` | `run_command`, `ExecutionResult` |
-| `interfaces/cli.py` | Parser argparse + handlers |
-| `interfaces/api.py` | Endpoints FastAPI |
+| `interfaces/cli.py` | Parser argparse y handlers |
 | `interfaces/wizard.py` | Asistente `autocomplete init` |
 
 ---
@@ -268,14 +275,20 @@ print(ac2.suggestions("cafe"))
 
 ```python
 from autocomplete import (
-    Autocomplete,       # clase principal
-    LoadStats,          # stats de bulk_load
-    LoadDirStats,       # stats de bulk_load_dir
-    Config,             # configuración persistente
-    Storage,            # persistencia SQLAlchemy
-    ExecutionResult,    # resultado de run_command
-    run_command,        # ejecutor de comandos
-    strip_accents,      # util de normalización
+    Autocomplete,        # clase principal
+    LoadStats,           # stats de bulk_load
+    LoadDirStats,        # stats de bulk_load_dir
+    Trie,                # estructura interna
+    TrieNode,
+    Config,              # configuración persistente
+    Storage,             # persistencia SQLAlchemy
+    Base,
+    WordRecord,
+    HistoryRecord,
+    PreferenceRecord,
+    ExecutionResult,     # resultado de run_command
+    run_command,         # ejecutor de comandos
+    strip_accents,       # normalización
     normalize_key,
     levenshtein,
     damerau_levenshtein,
@@ -307,7 +320,8 @@ from autocomplete import (
 
 ## CLI
 
-Ejecutable con `python -m autocomplete` o `autocomplete` (si está instalado).
+Ejecutable con `python -m autocomplete` o `autocomplete` (si está
+instalado con `pip install -e .`).
 
 ### Subcomandos
 
@@ -329,11 +343,15 @@ Ejecutable con `python -m autocomplete` o `autocomplete` (si está instalado).
 ```text
 -f, --file FILE         Archivo a cargar (.txt/.tsv/.gz)
 --encoding ENCODING     Codificación (default: utf-8)
---separator SEP         Separador de columnas (\t, ,, etc.)
+--separator SEP         Separador de columnas (\t, ",", etc.)
 --db-url URL            URL SQLAlchemy
 --no-db                 No usar BD
 --no-accents            Desactiva normalización de acentos
+--no-daemon             No usar el daemon aunque esté corriendo
 ```
+
+El flag `--no-daemon` es útil para scripting: garantiza que el CLI
+resuelva las sugerencias localmente sin depender del estado del daemon.
 
 ### Ejemplos
 
@@ -349,6 +367,9 @@ python -m autocomplete shell --yes
 
 # Cargar directorio
 python -m autocomplete load-dir comandos --recursive --replace
+
+# Forzar uso local sin daemon
+python -m autocomplete --no-daemon suggest git
 ```
 
 ### Subcomandos `db`
@@ -356,7 +377,7 @@ python -m autocomplete load-dir comandos --recursive --replace
 | Comando | Descripción |
 |---|---|
 | `db init` | Inicializa la BD |
-| `db info` | Muestra información |
+| `db info` | Muestra URL, motor, número de palabras y tamaño |
 | `db add <words...>` | Añade palabras |
 | `db remove <words...>` | Elimina palabras |
 | `db list [--limit N]` | Lista palabras |
@@ -412,13 +433,22 @@ python -m autocomplete config set database_url "postgresql+psycopg://user:pass@h
 python -m autocomplete config reset
 ```
 
+### Variables de entorno
+
+| Variable | Uso |
+|---|---|
+| `AUTOCOMPLETE_CONFIG` | Ruta al `config.json` |
+| `AUTOCOMPLETE_DB_URL` | Sobreescribe `database_url` |
+| `AUTOCOMPLETE_PG_DUMP` | Ruta explícita a `pg_dump` |
+| `AUTOCOMPLETE_MYSQLDUMP` | Ruta explícita a `mysqldump` |
+
 ---
 
 ## Base de datos
 
 ### Motor por defecto: SQLite
 
-Se crea en `<config_dir>/data.db` automáticamente.
+Se crea en `<config_dir>/data.db` automáticamente al primer uso.
 
 ### Cambiar a PostgreSQL
 
@@ -446,8 +476,10 @@ python -m autocomplete config set database_url "mysql+pymysql://user:pass@localh
 ### Backup y restore
 
 ```powershell
-# Backup
+# Backup a la ruta por defecto (config_dir/backups/)
 python -m autocomplete db backup
+
+# Backup a ruta específica
 python -m autocomplete db backup -o D:\backups\auto.db
 
 # Restore
@@ -461,9 +493,47 @@ Comportamiento por motor:
 
 | Comando | SQLite | PostgreSQL | MySQL |
 |---|---|---|---|
-| `backup` | Copia `.db` | `pg_dump` | `mysqldump` |
-| `restore` | Copia sobre `.db` | `psql -f` | `mysql <` |
+| `backup` | Copia el archivo `.db` | `pg_dump` | `mysqldump` |
+| `restore` | Reemplaza el `.db` | `psql -f` | `mysql <` |
 | `vacuum` | `VACUUM` | `VACUUM FULL` | `OPTIMIZE TABLE` |
+
+### Resolución de `pg_dump` / `mysqldump`
+
+Cuando el motor no es SQLite, `Storage.backup()` y `Storage.restore()`
+buscan el ejecutable en este orden:
+
+1. Variable de entorno `AUTOCOMPLETE_PG_DUMP` / `AUTOCOMPLETE_MYSQLDUMP`.
+2. `shutil.which("pg_dump")` / `shutil.which("mysqldump")`.
+3. Nombre pelado (`"pg_dump"` / `"mysqldump"`), que fallará si no está
+   en el PATH.
+
+Ejemplo con el `pg_dump` de pgAdmin que no está en el PATH:
+
+```powershell
+# Solo sesión actual
+$env:AUTOCOMPLETE_PG_DUMP = "C:\Program Files\PostgreSQL\17\pgAdmin 4\runtime\pg_dump.exe"
+python -m autocomplete db backup
+
+# Permanente para el usuario
+[Environment]::SetEnvironmentVariable(
+    "AUTOCOMPLETE_PG_DUMP",
+    "C:\Program Files\PostgreSQL\17\pgAdmin 4\runtime\pg_dump.exe",
+    "User"
+)
+```
+
+### Programático
+
+```python
+from autocomplete import Storage
+
+with Storage("sqlite:///mi.db") as s:
+    # Backup explícito a un directorio base
+    path = s.backup(base_dir="/tmp/respaldos")
+
+    # Backup a ruta exacta (ignora base_dir)
+    path = s.backup("/tmp/respaldos/backup-manual.db")
+```
 
 ---
 
@@ -512,7 +582,7 @@ ejecutan, el CLI avisa al daemon para que recargue desde la BD.
 python -m autocomplete init
 ```
 
-El asistente detecta el shell, instala el wrapper y configura el perfil.
+El asistente detecta el shell, instala el wrapper y lo añade al perfil.
 
 ### Instalación manual PowerShell
 
@@ -560,10 +630,10 @@ El wrapper usa el daemon si está activo y cae al CLI si no lo está.
 
 ### Compatibilidad PSReadLine
 
-El wrapper funciona en PSReadLine 2.0.0+ y 2.3.x. **No intercepta la
-tecla Enter** (evita el error `No se encuentra el tipo
+El wrapper funciona en PSReadLine 2.0.0+ y 2.3.x. No intercepta la
+tecla Enter (evita el error `No se encuentra el tipo
 [Microsoft.PowerShell.PSReadLine]`). El estado del ciclo se resetea
-automáticamente cuando cambia el prefijo.
+automáticamente cuando el prefijo cambia.
 
 Si PSReadLine no está cargado:
 
@@ -591,8 +661,8 @@ Flujo interactivo:
 
 1. Detecta shell (`pwsh`, `powershell`, `bash`, `zsh`, `fish`, `cmd`).
 2. Pregunta si usar el shell detectado.
-3. Muestra configuración y permite cambiar la URL de BD.
-4. Pregunta preferencias (auto_execute).
+3. Muestra la configuración y permite cambiar la URL de BD.
+4. Pregunta preferencias (`auto_execute`).
 5. Ofrece cargar un archivo de palabras.
 6. Instala el wrapper de Tab.
 7. Arranca el daemon en background.
@@ -603,16 +673,23 @@ Modo no interactivo:
 python -m autocomplete init --yes
 ```
 
+En modo no interactivo se usan los valores por defecto y se instala el
+wrapper del shell detectado sin preguntar.
+
 ---
 
 ## Diccionario de comandos
 
 ### Archivo monolítico
 
-`comandos.txt`: ~600 líneas con comandos de Git, Docker, Kubernetes,
-AWS, Azure, GCloud, Python, Node, Java, Go, Rust, Ruby, PHP, .NET,
-PowerShell, CMD, Linux coreutils, redes, bases de datos, package
-managers, servidores web, editores, multimedia y DevOps.
+`comandos.txt`: ~600 comandos en un solo archivo. Formato:
+
+```text
+# Comentario
+git
+git-commit
+git-push
+```
 
 ### Directorio por categorías
 
@@ -622,16 +699,7 @@ managers, servidores web, editores, multimedia y DevOps.
 python -m autocomplete load-dir comandos --recursive --replace
 ```
 
-Formato:
-
-```text
-# Comentario
-git
-git-commit
-git-push
-```
-
-O con pesos (separador TAB):
+Formato con pesos opcionales (TAB):
 
 ```text
 git         10
@@ -639,7 +707,7 @@ git-commit   5
 git-push     3
 ```
 
-### Añadir a la BD
+### Cargar a la BD
 
 ```powershell
 # Un archivo
@@ -650,63 +718,6 @@ python -m autocomplete load-dir comandos --recursive
 
 # Palabras sueltas
 python -m autocomplete db add git-fetch git-rebase --weight 5
-```
-
----
-
-## API HTTP (FastAPI)
-
-### Instalación
-
-```powershell
-pip install "fastapi[standard]" uvicorn
-```
-
-### Arranque
-
-```powershell
-uvicorn autocomplete.api:app --host 127.0.0.1 --port 8765
-```
-
-### Endpoints
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/health` | Estado + número de palabras |
-| GET | `/suggest?prefix=X&limit=N` | Sugerencias |
-| GET | `/correct?word=X&max_distance=N&limit=N` | Correcciones |
-| GET | `/contains?word=X` | ¿Existe? |
-| POST | `/words` | Añade palabras |
-| POST | `/reload` | Recarga desde la BD |
-
-### Ejemplo
-
-```powershell
-curl "http://127.0.0.1:8765/suggest?prefix=git&limit=5"
-```
-
-```json
-{
-  "prefix": "git",
-  "suggestions": ["git", "git-add", "git-am", "git-apply", "git-archive"]
-}
-```
-
-### Frontend JavaScript
-
-```javascript
-const input = document.getElementById('buscar');
-
-input.addEventListener('input', async (e) => {
-  const q = e.target.value.trim();
-  if (!q) return;
-
-  const r = await fetch(
-    `http://127.0.0.1:8765/suggest?prefix=${encodeURIComponent(q)}&limit=10`
-  );
-  const data = await r.json();
-  console.log(data.suggestions);
-});
 ```
 
 ---
@@ -759,11 +770,19 @@ def suggest(request):
 
 ### Como microservicio separado
 
-```
+Varias apps Python o de otros lenguajes pueden consumir un único
+proceso que mantiene el Trie:
+
+```text
 [doc-generator]  ─┐
-[blog]           ─┼──►  [autocomplete-api :8765]  ──►  [PostgreSQL]
+[blog]           ─┼──►  [servicio autocomplete]  ──►  [PostgreSQL]
 [foro]           ─┘
 ```
+
+El servicio expone los endpoints HTTP equivalentes a los subcomandos
+del CLI. La forma más simple es montar un wrapper con FastAPI que
+llame a `Autocomplete.suggestions` y `Autocomplete.correct` sobre una
+instancia cargada desde `Storage`.
 
 ### Docker
 
@@ -772,9 +791,8 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY pyproject.toml .
 COPY autocomplete ./autocomplete
-RUN pip install --no-cache-dir ".[postgres]" "fastapi[standard]" uvicorn
-EXPOSE 8765
-CMD ["uvicorn", "autocomplete.api:app", "--host", "0.0.0.0", "--port", "8765"]
+RUN pip install --no-cache-dir ".[postgres]"
+# Añade aquí tu wrapper HTTP (p. ej. uvicorn + FastAPI)
 ```
 
 ```yaml
@@ -790,7 +808,6 @@ services:
     build: .
     environment:
       AUTOCOMPLETE_DB_URL: postgresql+psycopg://postgres:autocomplete@db:5432/autocomplete
-    ports: ["8765:8765"]
     depends_on: [db]
 
 volumes: { pgdata: {} }
@@ -803,8 +820,8 @@ volumes: { pgdata: {} }
 | Generador de documentos offline | Librería embebida |
 | Blog/foro pequeño (1 worker) | Librería o Flask/Django directo |
 | Blog/foro con varios workers | FastAPI + Redis/Postgres |
-| Varias apps Python | FastAPI microservicio |
-| Varias apps + otros lenguajes | FastAPI microservicio |
+| Varias apps Python | Microservicio HTTP |
+| Varias apps + otros lenguajes | Microservicio HTTP |
 | Tab completion en consola | Daemon TCP |
 | Editor de texto nativo | Daemon TCP |
 
@@ -812,21 +829,59 @@ volumes: { pgdata: {} }
 
 ## Tests
 
+### Ejecutar
+
 ```powershell
-pytest
-pytest -v
-pytest --cov=autocomplete
+pytest                              # todos
+pytest -v                           # detallado
+pytest tests/test_core.py           # un módulo
+pytest tests/test_storage.py::TestCRUD   # una clase
+pytest --cov=autocomplete --cov-report=term-missing
+pytest --cov=autocomplete --cov-report=html
 ```
 
-Cobertura de los tests:
+### Cobertura
 
-- Sugerencias básicas y con límite.
-- Orden por frecuencia y alfabético.
-- Acentos (normalización, `remove_accents=False`).
-- `add_word`, `add_words`, `remove_word`, `contains`, `__len__`.
-- `bulk_load` desde `.txt`, `.tsv`, `.gz`.
-- Errores de formato y progreso.
-- `bulk_load_dir` (directorio).
+La suite cubre:
+
+- **`test_core.py`**: `Autocomplete` (sugerencias, add/remove,
+  contains, correct, len, all_words) y `Trie`/`TrieNode`.
+- **`test_similarity.py`**: `levenshtein`, `damerau_levenshtein`,
+  `find_similar` (transposiciones, `max_dist`, orden, límite).
+- **`test_text.py`**: `strip_accents` y `normalize_key` con casos
+  vacíos, mayúsculas, caracteres no latinos y `remove_accents=False`.
+- **`test_bulk_load.py`**: `bulk_load` desde `.txt`, `.tsv`, `.gz`,
+  errores de formato, `on_progress`; `bulk_load_dir` con recursión,
+  patrón, directorio inexistente.
+- **`test_stats.py`**: `LoadStats` y `LoadDirStats` (conteos, errores
+  agregados, `__str__`).
+- **`test_storage.py`**: CRUD de palabras, historial, preferencias,
+  `reset`, `backup`/`restore` SQLite, `vacuum`, backup mockeado de
+  PostgreSQL y MySQL, motor desconocido, ciclo de vida con
+  `close()` y context manager.
+- **`test_config.py`**: defaults, `set`/`get`, persistencia JSON,
+  `reset`, `db_url`, override por variables de entorno, archivo
+  corrupto.
+- **`test_execution.py`**: `run_command` con `capture=True/False`,
+  timeout, `cwd`, éxito/fallo; `ExecutionResult.success`.
+- **`test_server.py`**: `DaemonServer.dispatch` para todas las
+  operaciones, cliente TCP end-to-end, lectura de `daemon.port`/
+  `daemon.pid`, `status`, JSON inválido en el socket.
+- **`test_cli.py`**: `build_parser`, `config`, `db` (todos los
+  subcomandos), `suggest`, `correct`, `repl`, `shell`, `load-dir`,
+  `daemon`, `install-ps`.
+- **`test_wizard.py`**: `detect_shell`, `profile_path`,
+  `_wrapper_text`, `_append_line_once`, mapeo de shells,
+  `run_init(interactive=False)`.
+
+### Reglas al añadir tests
+
+- Cada funcionalidad nueva trae al menos un test.
+- Cada bug corregido trae un test que lo reproduce.
+- Usar `tmp_path` para archivos temporales.
+- SQLite en memoria (`sqlite:///:memory:`) para tests de `Storage`
+  siempre que no haya que verificar el archivo físico.
+- Evitar depender de red, daemon real o estado del sistema.
 
 ---
 
@@ -844,13 +899,12 @@ testpaths = ["tests"]
 pythonpath = ["."]
 ```
 
-O usa `python -m pytest` en vez de `pytest`.
+O usar `python -m pytest` en vez de `pytest`.
 
 ### `ImportError: attempted relative import with no known parent package`
 
-**Causa**: ejecutaste `python autocomplete` en vez de `python -m autocomplete`.
-
-**Explicación**:
+**Causa**: se ejecutó `python autocomplete` en lugar de
+`python -m autocomplete`.
 
 | Comando | Resultado |
 |---|---|
@@ -859,17 +913,19 @@ O usa `python -m pytest` en vez de `pytest`.
 | `python -m autocomplete` | ✅ correcto |
 | `autocomplete` (instalado) | ✅ correcto |
 
-**Solución**: usa `python -m autocomplete` o instala con `pip install -e .`
-y usa el comando `autocomplete` directamente.
+**Solución**: usar `python -m autocomplete` o instalar con
+`pip install -e .` y usar el comando `autocomplete`.
 
 ### `No se encuentra el tipo [Microsoft.PowerShell.PSReadLine]`
 
-**Causa**: el wrapper intentaba usar `[Microsoft.PowerShell.PSReadLine]::AcceptLine()`, un tipo que no existe.
+**Causa**: un wrapper antiguo intentaba usar
+`[Microsoft.PowerShell.PSReadLine]::AcceptLine()`, un tipo que no
+existe.
 
-**Solución**: el wrapper actual **no intercepta Enter**. El estado del
-ciclo de Tab se resetea cuando cambia el prefijo. Si el error aparece:
+**Solución**: el wrapper actual no intercepta Enter. Si aparece el
+error:
 
-1. Actualiza el wrapper:
+1. Reinstala el wrapper:
    ```powershell
    python -m autocomplete install-ps
    ```
@@ -877,7 +933,7 @@ ciclo de Tab se resetea cuando cambia el prefijo. Si el error aparece:
    ```powershell
    Get-Module PSReadLine -ListAvailable | Select-Object Name, Version
    ```
-3. Si es 2.0.0, actualiza:
+3. Si es 2.0.0 y quieres actualizar:
    ```powershell
    Install-Module PSReadLine -Scope CurrentUser -Force -AllowClobber
    ```
@@ -885,41 +941,38 @@ ciclo de Tab se resetea cuando cambia el prefijo. Si el error aparece:
 ### El daemon no arranca
 
 ```powershell
-# Ver estado
 python -m autocomplete daemon status
-
-# Intentar arranque manual para ver errores
-python -m autocomplete daemon run
-
-# Forzar reinicio
+python -m autocomplete daemon run      # primer plano para ver errores
 python -m autocomplete daemon restart
 ```
 
 ### El Tab no responde o tarda mucho
 
-1. Verifica que el daemon esté activo:
+1. Comprueba que el daemon esté activo:
    ```powershell
    python -m autocomplete daemon status
    ```
-2. Si no está activo, arráncalo:
+2. Si no lo está:
    ```powershell
    python -m autocomplete daemon start
    ```
-3. Si sigue lento, revisa que la BD no sea enorme. El daemon precarga todo el Trie al arrancar.
+3. Si sigue lento, revisa el tamaño de la BD: el daemon precarga todo
+   el Trie al arrancar.
 
-### Backup falla en PostgreSQL
+### `db backup` falla con PostgreSQL o MySQL
+
+El ejecutable no está en el PATH. Apunta a él con la variable de
+entorno:
 
 ```powershell
-# Verificar que pg_dump esté en PATH
-Get-Command pg_dump
+$env:AUTOCOMPLETE_PG_DUMP = "C:\ruta\a\pg_dump.exe"
+$env:AUTOCOMPLETE_MYSQLDUMP = "C:\ruta\a\mysqldump.exe"
 ```
-
-Si no está, añade `C:\Program Files\PostgreSQL\<version>\bin` al PATH.
 
 ### `database is locked` (SQLite)
 
-Solo ocurre si abres la BD desde dos procesos que escriben. El daemon
-solo lee; el CLI escribe. Si persiste:
+Solo ocurre si dos procesos escriben a la vez. El daemon solo lee; el
+CLI escribe. Si persiste:
 
 ```powershell
 python -m autocomplete db vacuum
@@ -927,47 +980,6 @@ python -m autocomplete db vacuum
 
 ---
 
-## Historial de cambios
-
-### v1.5.0
-
-- `db restore` y `db vacuum`.
-- `db history --clear`.
-- `db info` con tamaño de BD.
-- Detección de motor (SQLite/Postgres/MySQL) en `Storage`.
-- `_sqlite_path()` para manejo correcto de rutas Windows.
-
-### v1.4.0
-
-- Daemon TCP local.
-- Cliente con fallback al CLI.
-- Asistente `autocomplete init`.
-- Wrappers `.ps1/.bash/.zsh/.fish` daemon-aware.
-
-### v1.3.0
-
-- Persistencia con SQLAlchemy.
-- Historial de comandos.
-- Preferencias en tabla + JSON.
-
-### v1.2.0
-
-- CLI con subcomandos (`suggest`, `correct`, `shell`, `repl`).
-- Autocorrección con Damerau-Levenshtein.
-- Modo `shell` con ejecución de comandos.
-
-### v1.1.0
-
-- Normalización de acentos con `unicodedata`.
-- `bulk_load` desde archivos.
-- `LoadStats`.
-
-### v1.0.0
-
-- Versión inicial con `Autocomplete` y `Trie`.
-
----
-
 ## Licencia
 
-MIT. Consulta `LICENSE` si lo incluyes.
+MIT. Consulta `LICENSE`.
