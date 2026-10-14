@@ -32,4 +32,4 @@ __all__ = [
     "InvalidWordError",
 ]
 
-__version__ = "1.5.0"
+__version__ = "1.0.0"
