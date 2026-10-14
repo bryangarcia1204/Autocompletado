@@ -1,0 +1,16 @@
+# PHP & Composer
+php
+composer
+composer-install
+composer-update
+composer-require
+composer-remove
+composer-dump-autoload
+composer-run-script
+composer-show
+composer-outdated
+artisan
+phpunit
+symfony
+laravel
+wp-cli

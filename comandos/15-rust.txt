@@ -1,0 +1,19 @@
+# Rust & Cargo
+rustc
+cargo
+cargo-build
+cargo-run
+cargo-test
+cargo-check
+cargo-clippy
+cargo-fmt
+cargo-add
+cargo-remove
+cargo-update
+cargo-publish
+cargo-doc
+cargo-bench
+cargo-clean
+rustup
+rustfmt
+clippy

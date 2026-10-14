@@ -1,0 +1,21 @@
+# Ruby & gem
+ruby
+irb
+gem
+gem-install
+gem-uninstall
+gem-update
+gem-list
+gem-search
+bundle
+bundle-install
+bundle-update
+bundle-exec
+bundle-add
+bundle-remove
+rails
+rake
+rackup
+puma
+sinatra
+jekyll

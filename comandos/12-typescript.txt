@@ -1,0 +1,18 @@
+# TypeScript & Bundlers
+tsc
+ts-node
+tsx
+esbuild
+webpack
+vite
+rollup
+parcel
+babel
+swc
+turbo
+nx
+lerna
+next
+nuxt
+astro
+svelte-kit

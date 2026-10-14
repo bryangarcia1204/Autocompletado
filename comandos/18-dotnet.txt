@@ -1,0 +1,20 @@
+# .NET & dotnet
+dotnet
+dotnet-new
+dotnet-build
+dotnet-run
+dotnet-test
+dotnet-publish
+dotnet-pack
+dotnet-restore
+dotnet-clean
+dotnet-format
+dotnet-add
+dotnet-remove
+dotnet-list
+dotnet-nuget
+dotnet-tool
+dotnet-ef
+dotnet-watch
+msbuild
+nuget

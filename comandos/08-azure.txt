@@ -1,0 +1,26 @@
+# Azure CLI
+az
+az-login
+az-logout
+az-account
+az-group
+az-vm
+az-storage
+az-acr
+az-aks
+az-webapp
+az-functionapp
+az-sql
+az-cosmosdb
+az-keyvault
+az-network
+az-role
+az-ad
+az-monitor
+az-pipelines
+az-boards
+az-repos
+az-artifacts
+az-devops
+az-bicep
+az-deployment

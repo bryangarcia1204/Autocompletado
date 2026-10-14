@@ -1,0 +1,12 @@
+# Ansible
+ansible
+ansible-playbook
+ansible-galaxy
+ansible-vault
+ansible-doc
+ansible-config
+ansible-inventory
+ansible-pull
+ansible-console
+ansible-lint
+ansible-test

@@ -1,0 +1,15 @@
+# Web servers
+nginx
+nginx-s
+nginx-t
+apachectl
+httpd
+caddy
+lighttpd
+haproxy
+traefik
+envoy
+varnish
+tomcat
+jboss
+wildfly

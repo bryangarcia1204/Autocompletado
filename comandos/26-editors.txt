@@ -1,0 +1,21 @@
+# Editores
+vim
+vi
+nvim
+nano
+pico
+emacs
+micro
+helix
+hx
+kak
+code
+code-insiders
+subl
+atom
+notepad
+gedit
+kate
+mousepad
+leafpad
+geany

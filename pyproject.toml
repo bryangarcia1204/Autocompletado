@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brayan-autocomplete"
+version = "1.4.0"
+description = "Autocompletador + autocorrector con CLI, Tab wrapper y SQLAlchemy"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Tu Nombre" }]
+license = { text = "MIT" }
+dependencies = [
+    "SQLAlchemy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+postgres = ["psycopg[binary]>=3.1"]
+mysql = ["pymysql>=1.1"]
+
+[project.scripts]
+autocomplete = "autocomplete.interfaces.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["autocomplete*"]
+
+[tool.setuptools.package-data]
+"autocomplete.assets" = ["*.ps1", "*.bash", "*.zsh", "*.fish"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

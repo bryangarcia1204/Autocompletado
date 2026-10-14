@@ -1,0 +1,21 @@
+# Go
+go
+go-build
+go-run
+go-test
+go-get
+go-install
+go-mod
+go-fmt
+go-vet
+go-lint
+go-doc
+go-env
+go-version
+go-generate
+go-clean
+go-list
+gofmt
+golangci-lint
+air
+delve

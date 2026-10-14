@@ -1,0 +1,27 @@
+# Terraform
+terraform
+terraform-init
+terraform-plan
+terraform-apply
+terraform-destroy
+terraform-validate
+terraform-fmt
+terraform-output
+terraform-state
+terraform-import
+terraform-taint
+terraform-untaint
+terraform-workspace
+terraform-providers
+terraform-graph
+terraform-console
+terraform-refresh
+terraform-show
+terraform-version
+terragrunt
+terragrunt-init
+terragrunt-plan
+terragrunt-apply
+tflint
+tfsec
+checkov
