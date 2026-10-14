@@ -44,26 +44,31 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--limit", type=int, default=10)
     c.add_argument("--rest", default="", help="Args extra al comando.")
     c.add_argument(
-        "-x", "--execute", action="store_true",
+        "-x",
+        "--execute",
+        action="store_true",
         help="Ejecutar la mejor corrección.",
     )
     c.add_argument(
-        "-y", "--yes", action="store_true",
+        "-y",
+        "--yes",
+        action="store_true",
         help="No preguntar antes de ejecutar.",
     )
 
     # ---- shell ----
-    sh = sub.add_parser(
-        "shell", help="Autocorrector interactivo con ejecución."
-    )
+    sh = sub.add_parser("shell", help="Autocorrector interactivo con ejecución.")
     sh.add_argument("--limit", type=int, default=5)
     sh.add_argument("--max-distance", type=int, default=2)
     sh.add_argument(
-        "-y", "--yes", action="store_true",
+        "-y",
+        "--yes",
+        action="store_true",
         help="Ejecutar sin preguntar.",
     )
     sh.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Mostrar sin ejecutar.",
     )
 
@@ -82,7 +87,8 @@ def build_parser() -> argparse.ArgumentParser:
     ld.add_argument("--encoding", default="utf-8")
     ld.add_argument("--separator", default=None)
     ld.add_argument(
-        "--replace", action="store_true",
+        "--replace",
+        action="store_true",
         help="Borra las palabras de la BD antes de cargar.",
     )
 
@@ -116,7 +122,8 @@ def build_parser() -> argparse.ArgumentParser:
     dhist = dsub.add_parser("history", help="Historial de comandos.")
     dhist.add_argument("--limit", type=int, default=20)
     dhist.add_argument(
-        "--clear", action="store_true",
+        "--clear",
+        action="store_true",
         help="Borra todo el historial.",
     )
 
@@ -125,7 +132,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reinicia la BD (borra todos los datos y recrea el esquema).",
     )
     drs.add_argument(
-        "-y", "--yes", action="store_true",
+        "-y",
+        "--yes",
+        action="store_true",
         help="No pedir confirmación.",
     )
 
@@ -134,7 +143,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Genera un respaldo de la base de datos.",
     )
     dbk.add_argument(
-        "-o", "--output", default=None,
+        "-o",
+        "--output",
+        default=None,
         help="Ruta del archivo de salida (opcional).",
     )
 
@@ -147,7 +158,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ruta del archivo de backup a restaurar.",
     )
     drst.add_argument(
-        "-y", "--yes", action="store_true",
+        "-y",
+        "--yes",
+        action="store_true",
         help="No pedir confirmación.",
     )
 
@@ -170,9 +183,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ---- init ----
     initp = sub.add_parser("init", help="Asistente de configuración.")
-    initp.add_argument(
-        "-y", "--yes", action="store_true", help="Sin preguntas."
-    )
+    initp.add_argument("-y", "--yes", action="store_true", help="Sin preguntas.")
 
     # ---- install-ps ----
     sub.add_parser(
@@ -285,10 +296,14 @@ def handle_db(
     if args.db_cmd == "restart":
         if not args.yes:
             try:
-                answer = input(
-                    "Esto BORRARÁ todos los datos (palabras, historial, "
-                    "preferencias). ¿Continuar? [y/N] "
-                ).strip().lower()
+                answer = (
+                    input(
+                        "Esto BORRARÁ todos los datos (palabras, historial, "
+                        "preferencias). ¿Continuar? [y/N] "
+                    )
+                    .strip()
+                    .lower()
+                )
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 1
@@ -319,10 +334,14 @@ def handle_db(
 
         if not args.yes:
             try:
-                answer = input(
-                    f"Esto REEMPLAZARÁ la BD actual con '{src}'. "
-                    "¿Continuar? [y/N] "
-                ).strip().lower()
+                answer = (
+                    input(
+                        f"Esto REEMPLAZARÁ la BD actual con '{src}'. "
+                        "¿Continuar? [y/N] "
+                    )
+                    .strip()
+                    .lower()
+                )
             except (EOFError, KeyboardInterrupt):
                 print()
                 return 1
@@ -437,8 +456,7 @@ def _build_autocomplete(
             separator=args.separator,
         )
         print(
-            f"[autocomplete] {stats.loaded} del archivo, "
-            f"{stats.skipped} omitidas.",
+            f"[autocomplete] {stats.loaded} del archivo, " f"{stats.skipped} omitidas.",
             file=sys.stderr,
         )
         if storage is not None:
@@ -472,9 +490,7 @@ def cmd_correct(
     storage: Optional[Storage],
     config: Config,
 ) -> int:
-    results = ac.correct(
-        args.word, max_distance=args.max_distance, limit=args.limit
-    )
+    results = ac.correct(args.word, max_distance=args.max_distance, limit=args.limit)
     if not results:
         print(f"Sin sugerencias para '{args.word}'", file=sys.stderr)
         return 1
@@ -498,9 +514,7 @@ def cmd_correct(
         if answer not in ("", "y", "yes", "s"):
             print("Cancelado.")
             if storage:
-                storage.add_history(
-                    command=args.word, corrected=full, executed=False
-                )
+                storage.add_history(command=args.word, corrected=full, executed=False)
             return 1
 
     result = run_command(full, timeout=config.get("timeout"))
@@ -554,8 +568,7 @@ def cmd_shell(
     auto = args.yes or bool(config.get("auto_execute"))
     print("# Autocorrector. 'salir' para terminar.")
     print(
-        "# Modo: "
-        + ("EJECUTA SIN PREGUNTAR" if auto else "pregunta antes de ejecutar")
+        "# Modo: " + ("EJECUTA SIN PREGUNTAR" if auto else "pregunta antes de ejecutar")
     )
 
     while True:
@@ -597,9 +610,7 @@ def cmd_shell(
 
         if not auto and config.get("confirm_before_execute", True):
             try:
-                answer = input(
-                    f"  ¿Ejecutar '{target}'? [Y/n] "
-                ).strip().lower()
+                answer = input(f"  ¿Ejecutar '{target}'? [Y/n] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
@@ -622,9 +633,7 @@ def cmd_shell(
     return 0
 
 
-def cmd_load_dir(
-    storage: Optional[Storage], args: argparse.Namespace
-) -> int:
+def cmd_load_dir(storage: Optional[Storage], args: argparse.Namespace) -> int:
     if storage is None:
         print("Base de datos no disponible.", file=sys.stderr)
         return 2
@@ -653,14 +662,9 @@ def cmd_load_dir(
     for name, s in sorted(stats.files.items()):
         print(f"  {name:<28} +{s.loaded:<5} (-{s.skipped})")
 
-    storage.add_many(
-        [(w, 1) for w in ac.all_words()], source=str(args.directory)
-    )
+    storage.add_many([(w, 1) for w in ac.all_words()], source=str(args.directory))
 
-    print(
-        f"\nTotal: {stats.loaded} palabras cargadas, "
-        f"{stats.skipped} omitidas."
-    )
+    print(f"\nTotal: {stats.loaded} palabras cargadas, " f"{stats.skipped} omitidas.")
     if stats.errors:
         print(f"Errores: {len(stats.errors)}", file=sys.stderr)
         for e in stats.errors[:10]:
@@ -697,9 +701,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             storage = Storage(url)
         except Exception as exc:  # noqa: BLE001
-            print(
-                f"[warn] BD no disponible ({url}): {exc}", file=sys.stderr
-            )
+            print(f"[warn] BD no disponible ({url}): {exc}", file=sys.stderr)
 
     if args.command == "db":
         return handle_db(config, args, storage)

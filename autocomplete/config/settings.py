@@ -17,13 +17,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 DEFAULTS: Dict[str, Any] = {
-    "database_url": None,            # None = SQLite por defecto
-    "auto_execute": False,           # ejecutar sin preguntar
+    "database_url": None,  # None = SQLite por defecto
+    "auto_execute": False,  # ejecutar sin preguntar
     "confirm_before_execute": True,  # pedir confirmacion
     "max_distance": 2,
     "limit": 10,
     "remove_accents": True,
-    "timeout": None,                 # segundos, None = sin timeout
+    "timeout": None,  # segundos, None = sin timeout
 }
 
 

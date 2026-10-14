@@ -19,13 +19,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator, List, Optional, Tuple
 
-from .models import Base, HistoryRecord, PreferenceRecord, WordRecord
-from sqlalchemy import (
-    create_engine,
-    select,
-)
+from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
+
+from .models import Base, HistoryRecord, PreferenceRecord, WordRecord
 
 
 class Storage:
@@ -35,9 +33,7 @@ class Storage:
         self.url = url
         self.engine = create_engine(url, future=True)
         Base.metadata.create_all(self.engine)
-        self._session_factory = sessionmaker(
-            bind=self.engine, expire_on_commit=False
-        )
+        self._session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     # ------------------------------------------------------------------ #
     # Sesiones
@@ -76,9 +72,7 @@ class Storage:
     # ------------------------------------------------------------------ #
     # Palabras
     # ------------------------------------------------------------------ #
-    def add_word(
-        self, text_: str, weight: int = 1, source: str = "manual"
-    ) -> None:
+    def add_word(self, text_: str, weight: int = 1, source: str = "manual") -> None:
         with self._session() as s:
             row = s.execute(
                 select(WordRecord).where(WordRecord.text == text_)
@@ -89,9 +83,7 @@ class Storage:
                 row.weight += weight
                 row.source = source or row.source
 
-    def add_many(
-        self, items: Iterable[Tuple[str, int]], source: str = "bulk"
-    ) -> int:
+    def add_many(self, items: Iterable[Tuple[str, int]], source: str = "bulk") -> int:
         count = 0
         with self._session() as s:
             for txt, weight in items:
@@ -257,7 +249,17 @@ class Storage:
         dbname = (u.database or "").lstrip("/") or "postgres"
 
         if self.is_postgres:
-            cmd = ["C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/pg_dump.exe", "-h", host, "-U", user, "-d", dbname, "-f", str(target)]
+            cmd = [
+                "C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/pg_dump.exe",
+                "-h",
+                host,
+                "-U",
+                user,
+                "-d",
+                dbname,
+                "-f",
+                str(target),
+            ]
             if port:
                 cmd[3:3] = ["-p", str(port)]
             env = {**os.environ, "PGPASSWORD": password}
@@ -307,7 +309,17 @@ class Storage:
         dbname = (u.database or "").lstrip("/") or "postgres"
 
         if self.is_postgres:
-            cmd = ["C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/psql.exe", "-h", host, "-U", user, "-d", dbname, "-f", str(src)]
+            cmd = [
+                "C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/psql.exe",
+                "-h",
+                host,
+                "-U",
+                user,
+                "-d",
+                dbname,
+                "-f",
+                str(src),
+            ]
             if port:
                 cmd[3:3] = ["-p", str(port)]
             env = {**os.environ, "PGPASSWORD": password}
@@ -331,9 +343,7 @@ class Storage:
                 ) from exc
             return
 
-        raise NotImplementedError(
-            f"Restore no soportado para motor {self.dialect!r}"
-        )
+        raise NotImplementedError(f"Restore no soportado para motor {self.dialect!r}")
 
     def vacuum(self) -> None:
         """Compacta la base de datos.
@@ -365,9 +375,7 @@ class Storage:
                     conn.exec_driver_sql(f"OPTIMIZE TABLE {t}")
             return
 
-        raise NotImplementedError(
-            f"Vacuum no soportado para motor {self.dialect!r}"
-        )
+        raise NotImplementedError(f"Vacuum no soportado para motor {self.dialect!r}")
 
     def db_size_bytes(self) -> Optional[int]:
         """Tamaño aproximado de la BD en bytes (solo SQLite)."""
@@ -375,3 +383,23 @@ class Storage:
             return None
         p = self._sqlite_path()
         return p.stat().st_size if p.exists() else None
+
+    # ------------------------------------------------------------------ #
+    # Ciclo de vida
+    # ------------------------------------------------------------------ #
+    def close(self) -> None:
+        """Cierra el pool de conexiones del engine."""
+        self.engine.dispose()
+
+    def __enter__(self) -> "Storage":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        # Best-effort en el recolector
+        try:
+            self.engine.dispose()
+        except Exception:  # noqa: BLE001
+            pass

@@ -40,9 +40,7 @@ class DaemonClient:
         r = self._call({"op": "ping"})
         return bool(r and r.get("ok"))
 
-    def suggest(
-        self, prefix: str, limit: Optional[int] = None
-    ) -> Optional[List[str]]:
+    def suggest(self, prefix: str, limit: Optional[int] = None) -> Optional[List[str]]:
         r = self._call({"op": "suggest", "prefix": prefix, "limit": limit})
         if not r or not r.get("ok"):
             return None

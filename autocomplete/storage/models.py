@@ -20,9 +20,7 @@ class WordRecord(Base):
     text: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     weight: Mapped[int] = mapped_column(Integer, default=1)
     source: Mapped[str] = mapped_column(String(64), default="manual")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
@@ -36,9 +34,7 @@ class HistoryRecord(Base):
     corrected: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     executed: Mapped[bool] = mapped_column(Boolean, default=False)
     exit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class PreferenceRecord(Base):

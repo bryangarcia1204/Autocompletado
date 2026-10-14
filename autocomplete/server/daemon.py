@@ -24,8 +24,8 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
-from ..core.engine import Autocomplete
 from ..config.settings import Config, config_dir
+from ..core.engine import Autocomplete
 from ..storage.repository import Storage
 
 PORT_FILE = config_dir() / "daemon.port"

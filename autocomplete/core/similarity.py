@@ -40,8 +40,8 @@ def levenshtein(a: str, b: str, max_dist: Optional[int] = None) -> int:
             cost = 0 if ca == cb else 1
             curr.append(
                 min(
-                    curr[j - 1] + 1,     # inserción
-                    prev[j] + 1,         # borrado
+                    curr[j - 1] + 1,  # inserción
+                    prev[j] + 1,  # borrado
                     prev[j - 1] + cost,  # sustitución
                 )
             )
@@ -78,12 +78,7 @@ def damerau_levenshtein(a: str, b: str, max_dist: Optional[int] = None) -> int:
                 d[i][j - 1] + 1,
                 d[i - 1][j - 1] + cost,
             )
-            if (
-                i > 1
-                and j > 1
-                and a[i - 1] == b[j - 2]
-                and a[i - 2] == b[j - 1]
-            ):
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
                 d[i][j] = min(d[i][j], d[i - 2][j - 2] + 1)
 
     return d[len_a][len_b]

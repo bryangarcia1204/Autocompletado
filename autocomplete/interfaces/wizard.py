@@ -73,17 +73,13 @@ def _query_ps_profile(exe: str) -> Optional[Path]:
 # ---------------------------------------------------------------------- #
 def _wrapper_text(name: str) -> str:
     # CORREGIDO: los wrappers viven en autocomplete.assets
-    return files("autocomplete.assets").joinpath(name).read_text(
-        encoding="utf-8"
-    )
+    return files("autocomplete.assets").joinpath(name).read_text(encoding="utf-8")
 
 
 def _append_line_once(profile: Path, line: str, comment: str) -> bool:
     profile.parent.mkdir(parents=True, exist_ok=True)
     existing = (
-        profile.read_text(encoding="utf-8", errors="ignore")
-        if profile.exists()
-        else ""
+        profile.read_text(encoding="utf-8", errors="ignore") if profile.exists() else ""
     )
     if line in existing:
         return False
@@ -147,9 +143,7 @@ def run_init(interactive: bool = True) -> int:
 
     if interactive and not _ask(f"¿Usar '{shell}'?", default=True):
         shell = (
-            input("Escribe el shell (bash/zsh/fish/pwsh/powershell): ")
-            .strip()
-            or shell
+            input("Escribe el shell (bash/zsh/fish/pwsh/powershell): ").strip() or shell
         )
 
     cfg = Config()
@@ -182,9 +176,7 @@ def run_init(interactive: bool = True) -> int:
     # ---------- Palabras iniciales ----------
     file_path: Optional[Path] = None
     if interactive:
-        raw = input(
-            "\nArchivo de palabras a cargar (vacío para omitir): "
-        ).strip()
+        raw = input("\nArchivo de palabras a cargar (vacío para omitir): ").strip()
         if raw:
             file_path = Path(raw).expanduser()
 
@@ -198,13 +190,9 @@ def run_init(interactive: bool = True) -> int:
             # CORREGIDO: import relativo correcto desde interfaces/
             from ..core.engine import Autocomplete
 
-            ac = Autocomplete(
-                remove_accents=bool(cfg.get("remove_accents", True))
-            )
+            ac = Autocomplete(remove_accents=bool(cfg.get("remove_accents", True)))
             stats = ac.bulk_load(file_path)
-            storage.add_many(
-                [(w, 1) for w in ac.all_words()], source=str(file_path)
-            )
+            storage.add_many([(w, 1) for w in ac.all_words()], source=str(file_path))
             print(
                 f"  Cargadas {stats.loaded} palabras desde {file_path} "
                 f"({stats.skipped} omitidas)."
@@ -222,7 +210,7 @@ def run_init(interactive: bool = True) -> int:
         profile = install_wrapper(shell)
         if profile is not None:
             if shell in ("pwsh", "powershell"):
-                print(f"\n  Recarga el perfil con:  . \"{profile}\"")
+                print(f'\n  Recarga el perfil con:  . "{profile}"')
             elif shell == "fish":
                 print(f"\n  Recarga el perfil con:  source {profile}")
             else:

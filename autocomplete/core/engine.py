@@ -1,20 +1,18 @@
 """Autocompletador reutilizable basado en Trie."""
 
 import gzip
-
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional, TextIO, Tuple, Union, Dict
+from typing import (Callable, Dict, Iterable, List, Optional, TextIO, Tuple,
+                    Union)
 
-from .stats import LoadDirStats, LoadStats
+from ..core.similarity import find_similar
 from ..exceptions import InvalidPrefixError, InvalidWordError
 from ..text.normalization import strip_accents
+from .stats import LoadDirStats, LoadStats
 from .trie import Trie
-from ..core.similarity import find_similar
 
 # Tipos de entrada aceptados por bulk_load
 FileSource = Union[str, Path, TextIO]
-
-
 
 
 class Autocomplete:
@@ -90,9 +88,7 @@ class Autocomplete:
             InvalidWordError: Si la palabra no es válida.
         """
         if not isinstance(word, str):
-            raise InvalidWordError(
-                f"Se esperaba str, se recibió {type(word).__name__}"
-            )
+            raise InvalidWordError(f"Se esperaba str, se recibió {type(word).__name__}")
 
         word = word.strip()
         if not word:
@@ -220,9 +216,7 @@ class Autocomplete:
                     continue
 
                 try:
-                    word, weight = self._parse_line(
-                        stripped, separator, weight_column
-                    )
+                    word, weight = self._parse_line(stripped, separator, weight_column)
                     if not word:
                         stats.skipped += 1
                         continue
@@ -303,9 +297,7 @@ class Autocomplete:
     # Internos
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _open_source(
-        source: FileSource, encoding: str
-    ) -> Tuple[TextIO, bool]:
+    def _open_source(source: FileSource, encoding: str) -> Tuple[TextIO, bool]:
         """Abre la fuente. Devuelve (stream, debe_cerrarse)."""
         if isinstance(source, (str, Path)):
             path = Path(source)
@@ -336,9 +328,7 @@ class Autocomplete:
                 try:
                     weight = int(raw_weight)
                 except ValueError as exc:
-                    raise InvalidWordError(
-                        f"peso inválido: {raw_weight!r}"
-                    ) from exc
+                    raise InvalidWordError(f"peso inválido: {raw_weight!r}") from exc
         return word, weight
 
     # ------------------------------------------------------------------ #
@@ -385,9 +375,7 @@ class Autocomplete:
             stack.extend(current.children.values())
 
         if sort_by_frequency:
-            collected.sort(
-                key=lambda item: (-item[1], strip_accents(item[0].lower()))
-            )
+            collected.sort(key=lambda item: (-item[1], strip_accents(item[0].lower())))
         else:
             collected.sort(key=lambda item: strip_accents(item[0].lower()))
 
