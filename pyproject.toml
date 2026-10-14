@@ -32,3 +32,19 @@ include = ["autocomplete*"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+omit = [
+    "*/tests/*",
+    "autocomplete/__main__.py",
+    "autocomplete/interfaces/api.py",
+    "autocomplete/interfaces/wizard.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

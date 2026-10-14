@@ -8,6 +8,15 @@ import pytest
 
 from autocomplete import Autocomplete, Storage
 
+from autocomplete.server import daemon as dm
+
+
+@pytest.fixture(autouse=True)
+def _aislar_daemon(tmp_path, monkeypatch):
+    """Redirige los archivos del daemon a tmp y evita tocar el real."""
+    monkeypatch.setattr(dm, "PORT_FILE", tmp_path / "daemon.port")
+    monkeypatch.setattr(dm, "PID_FILE", tmp_path / "daemon.pid")
+    yield
 
 @pytest.fixture
 def ac_basico() -> Autocomplete:

@@ -23,6 +23,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from ..config.settings import Config
 from .models import Base, HistoryRecord, PreferenceRecord, WordRecord
 
 
@@ -208,39 +209,57 @@ class Storage:
             database = database[1:]
         return Path(database)
 
-    def backup(self, output: Optional[str] = None) -> Path:
+    def backup(
+        self,
+        output: Optional[str] = None,
+        *,
+        base_dir: Optional[Path] = None,
+    ) -> Path:
         """Genera un respaldo de la base de datos.
 
-        - SQLite: copia el archivo .db.
-        - PostgreSQL: ``pg_dump``.
-        - MySQL / MariaDB: ``mysqldump``.
+        Args:
+            output: Ruta de salida. Si es ``None``, se genera un nombre
+                con timestamp en ``<base_dir>/backups/``.
+            base_dir: Directorio base para backups automáticos. Si es
+                ``None``, se usa el directorio de configuración.
+                Ignorado cuando ``output`` está definido.
 
         Returns:
             Ruta del archivo generado.
+
+        Notas:
+            - Para PostgreSQL y MySQL, el ejecutable del cliente se
+              resuelve en este orden:
+                1. ``AUTOCOMPLETE_PG_DUMP`` / ``AUTOCOMPLETE_MYSQLDUMP``
+                   (variable de entorno).
+                2. ``shutil.which("pg_dump")`` / ``which("mysqldump")``.
+                3. El nombre pelado (``"pg_dump"`` / ``"mysqldump"``),
+                   que fallará si no está en el PATH.
         """
-        from ..config.settings import config_dir
+        from ..config.settings import config_dir as _config_dir
 
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        out_dir = config_dir() / "backups"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
+        # 1) Resolver destino
         if output is not None:
             target = Path(output).expanduser().resolve()
+            target.parent.mkdir(parents=True, exist_ok=True)
         else:
+            root = Path(base_dir) if base_dir is not None else _config_dir()
+            out_dir = root / "backups"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             ext = ".db" if self.is_sqlite else ".sql"
             target = out_dir / f"backup-{timestamp}{ext}"
 
-        target.parent.mkdir(parents=True, exist_ok=True)
-
+        # 2) SQLite: copia directa del archivo
         if self.is_sqlite:
             src = self._sqlite_path()
             if not src.exists():
                 raise FileNotFoundError(f"No existe la BD: {src}")
-            # Forzar flush antes de copiar
             self.engine.dispose()
             shutil.copy2(src, target)
             return target
 
+        # 3) Otros motores: dump con la herramienta del motor
         u = make_url(self.url)
         host = u.host or "localhost"
         port = u.port
@@ -249,34 +268,42 @@ class Storage:
         dbname = (u.database or "").lstrip("/") or "postgres"
 
         if self.is_postgres:
-            cmd = [
-                "C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/pg_dump.exe",
-                "-h",
-                host,
-                "-U",
-                user,
-                "-d",
-                dbname,
-                "-f",
-                str(target),
+            exe = (
+                os.environ.get("AUTOCOMPLETE_PG_DUMP")
+                or Config().get("pg_dump_path")
+                or shutil.which("pg_dump")
+                or "pg_dump"
+            )
+            cmd: List[str] = [
+                exe, "-h", host, "-U", user, "-d", dbname, "-f", str(target)
             ]
             if port:
                 cmd[3:3] = ["-p", str(port)]
             env = {**os.environ, "PGPASSWORD": password}
+
         elif self.is_mysql:
-            cmd = ["mysqldump", "-h", host, "-u", user, f"-p{password}", dbname]
+            exe = (
+                os.environ.get("AUTOCOMPLETE_MYSQLDUMP")
+                or shutil.which("mysqldump")
+                or "mysqldump"
+            )
+            cmd = [exe, "-h", host, "-u", user, f"-p{password}", dbname]
             env = os.environ.copy()
+
         else:
             raise NotImplementedError(
                 f"Backup no soportado para motor {self.dialect!r}"
             )
 
         try:
-            subprocess.run(cmd, check=True, env=env)
+            with target.open("wb") as f:
+                subprocess.run(cmd, stdout=f, check=True, env=env)
         except FileNotFoundError as exc:
             raise NotImplementedError(
-                f"Herramienta '{cmd[0]}' no está en el PATH"
+                f"Herramienta '{cmd[0]}' no está en el PATH ni en "
+                f"AUTOCOMPLETE_PG_DUMP / AUTOCOMPLETE_MYSQLDUMP"
             ) from exc
+
         return target
 
     def restore(self, source: str) -> None:

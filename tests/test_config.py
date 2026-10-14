@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from autocomplete import Config
+from autocomplete.config import settings as cfg_mod
 from autocomplete.config.settings import DEFAULTS
 
 
@@ -62,3 +63,29 @@ class TestConfig:
         path.write_text("esto no es json", encoding="utf-8")
         cfg = Config(path)  # no debe lanzar
         assert cfg.get("max_distance") == 2
+
+
+class TestConfigPath:
+    def test_env_var_override(self, tmp_path, monkeypatch) -> None:
+        target = tmp_path / "custom.json"
+        monkeypatch.setenv("AUTOCOMPLETE_CONFIG", str(target))
+        assert cfg_mod.config_path() == target
+
+    def test_config_dir_con_env(self, tmp_path, monkeypatch) -> None:
+        target = tmp_path / "sub" / "config.json"
+        monkeypatch.setenv("AUTOCOMPLETE_CONFIG", str(target))
+        assert cfg_mod.config_dir() == tmp_path / "sub"
+
+
+class TestDefaultDbUrl:
+    def test_env_var(self, monkeypatch) -> None:
+        monkeypatch.setenv("AUTOCOMPLETE_DB_URL", "postgresql://x/y")
+        assert cfg_mod.default_db_url() == "postgresql://x/y"
+
+    def test_sin_env(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.delenv("AUTOCOMPLETE_DB_URL", raising=False)
+        monkeypatch.setenv(
+            "AUTOCOMPLETE_CONFIG", str(tmp_path / "config.json")
+        )
+        url = cfg_mod.default_db_url()
+        assert url.startswith("sqlite:///")

@@ -24,6 +24,7 @@ DEFAULTS: Dict[str, Any] = {
     "limit": 10,
     "remove_accents": True,
     "timeout": None,  # segundos, None = sin timeout
+    "pg_dump_path": "C:/Program Files/PostgreSQL/17/pgAdmin 4/runtime/pg_dump.exe"
 }
 
 

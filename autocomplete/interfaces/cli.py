@@ -23,6 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="autocomplete",
         description="Autocompletado, autocorrección y sugerencia de comandos.",
     )
+    p.add_argument(
+        "--no-daemon",
+        action="store_true",
+        help="No usar el daemon aunque esté corriendo.",
+    )
     p.add_argument("-f", "--file", help="Archivo a cargar (.txt/.tsv/.gz).")
     p.add_argument("--encoding", default="utf-8")
     p.add_argument("--separator", default=None)
@@ -474,11 +479,15 @@ def _build_autocomplete(
 def cmd_suggest(ac: Autocomplete, args: argparse.Namespace) -> int:
     from ..server.client import DaemonClient
 
-    client = DaemonClient()
-    if client.ping():
-        results = client.suggest(args.prefix, limit=args.limit) or []
-    else:
+    if getattr(args, "no_daemon", False):
         results = ac.suggestions(args.prefix, limit=args.limit)
+    else:
+        client = DaemonClient()
+        if client.ping():
+            results = client.suggest(args.prefix, limit=args.limit) or []
+        else:
+            results = ac.suggestions(args.prefix, limit=args.limit)
+
     for word in results:
         print(word)
     return 0 if results else 1
